@@ -38,6 +38,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         CODE_SIGN_IDENTITY: "Apple Development"
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: TVAG3T3Y65
   StatusTests:
     type: bundle.unit-test
     platform: iOS
