@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseFirestore
 
 @Observable
 final class LeaderboardService {
@@ -6,12 +7,33 @@ final class LeaderboardService {
     var currentScope: LeaderboardScope = .weekly
     var isLoading = false
 
+    @ObservationIgnored private var _db: Firestore? = nil
+    private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
+
     func loadLeaderboard(scope: LeaderboardScope) async {
         isLoading = true
         currentScope = scope
-        // In production: Firestore query with server-computed scores
-        try? await Task.sleep(for: .milliseconds(300))
-        entries = LeaderboardEntry.mocks
+        do {
+            let docs = try await db.collection("users")
+                .order(by: "totalStatusReceived", descending: true)
+                .limit(to: 100)
+                .getDocuments()
+
+            entries = docs.documents.enumerated().compactMap { index, doc in
+                guard let user = try? doc.data(as: User.self) else { return nil }
+                return LeaderboardEntry(
+                    userId: user.id,
+                    username: user.username,
+                    displayName: user.displayName,
+                    avatarURL: user.avatarURL,
+                    rank: index + 1,
+                    weightedScore: user.totalStatusReceived,
+                    changeFromLastWeek: 0
+                )
+            }
+        } catch {
+            entries = []
+        }
         isLoading = false
     }
 

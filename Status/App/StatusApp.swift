@@ -19,6 +19,7 @@ struct StatusApp: App {
     @State private var messageService = MessageService()
     @State private var broadcastService = BroadcastService()
     @State private var leaderboardService = LeaderboardService()
+    @State private var blockService = BlockService()
 
     var body: some Scene {
         WindowGroup {
@@ -28,6 +29,7 @@ struct StatusApp: App {
                 .environment(messageService)
                 .environment(broadcastService)
                 .environment(leaderboardService)
+                .environment(blockService)
         }
     }
 }

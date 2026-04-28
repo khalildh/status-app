@@ -31,7 +31,7 @@ struct ConversationsView: View {
         }
         .task {
             if let user = auth.currentUser {
-                await messageService.loadConversations(for: user.id)
+                messageService.startListeningToConversations(for: user.id)
             }
         }
     }

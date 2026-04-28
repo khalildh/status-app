@@ -72,7 +72,7 @@ struct ComposeBroadcastView: View {
         guard let user = auth.currentUser else { return }
         isSending = true
         let audience = statusEngine.broadcastAudience(for: user.id)
-        let _ = await broadcastService.createBroadcast(
+        let _ = try? await broadcastService.createBroadcast(
             authorId: user.id,
             text: text,
             audience: audience

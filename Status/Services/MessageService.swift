@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseFirestore
 
 @Observable
 final class MessageService {
@@ -6,28 +7,63 @@ final class MessageService {
     var messagesByConversation: [String: [Message]] = [:]
     var isLoading = false
 
-    func loadConversations(for userId: String) async {
-        isLoading = true
-        // In production: Firestore real-time listener via AsyncThrowingStream
-        // For now: mock data
-        try? await Task.sleep(for: .milliseconds(300))
-        conversations = Conversation.mocks.filter { $0.participantIds.contains(userId) }
-        isLoading = false
+    @ObservationIgnored private var _db: Firestore? = nil
+    private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
+    private var conversationsListener: ListenerRegistration?
+    private var messageListeners: [String: ListenerRegistration] = [:]
+
+    deinit {
+        conversationsListener?.remove()
+        messageListeners.values.forEach { $0.remove() }
     }
 
-    func loadMessages(for conversationId: String) async {
-        // In production: paginated Firestore query with real-time updates
-        try? await Task.sleep(for: .milliseconds(200))
-        if messagesByConversation[conversationId] == nil {
-            messagesByConversation[conversationId] = Message.mocks(
-                conversationId: conversationId,
-                between: "user_1",
-                userB: "user_2"
-            )
-        }
+    // MARK: - Conversations
+
+    func startListeningToConversations(for userId: String) {
+        conversationsListener?.remove()
+
+        conversationsListener = db.collection("conversations")
+            .whereField("participantIds", arrayContains: userId)
+            .order(by: "lastMessageAt", descending: true)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+                guard let docs = snapshot?.documents else { return }
+                self.conversations = docs.compactMap { try? $0.data(as: Conversation.self) }
+            }
     }
 
-    func sendMessage(conversationId: String, senderId: String, text: String) async {
+    func stopListeningToConversations() {
+        conversationsListener?.remove()
+        conversationsListener = nil
+    }
+
+    // MARK: - Messages
+
+    func startListeningToMessages(for conversationId: String) {
+        messageListeners[conversationId]?.remove()
+
+        messageListeners[conversationId] = db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .order(by: "sentAt", descending: false)
+            .limit(toLast: 100)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+                guard let docs = snapshot?.documents else { return }
+                self.messagesByConversation[conversationId] = docs.compactMap {
+                    try? $0.data(as: Message.self)
+                }
+            }
+    }
+
+    func stopListeningToMessages(for conversationId: String) {
+        messageListeners[conversationId]?.remove()
+        messageListeners.removeValue(forKey: conversationId)
+    }
+
+    // MARK: - Send Message
+
+    func sendMessage(conversationId: String, senderId: String, text: String) async throws {
         let message = Message(
             id: UUID().uuidString,
             conversationId: conversationId,
@@ -36,17 +72,29 @@ final class MessageService {
             sentAt: .now
         )
 
-        messagesByConversation[conversationId, default: []].append(message)
+        let batch = db.batch()
 
-        // Update conversation's last message
-        if let idx = conversations.firstIndex(where: { $0.id == conversationId }) {
-            conversations[idx].lastMessage = text
-            conversations[idx].lastMessageAt = .now
-            conversations[idx].lastSenderId = senderId
-        }
+        // Write message
+        let msgRef = db.collection("conversations")
+            .document(conversationId)
+            .collection("messages")
+            .document(message.id)
+        try batch.setData(from: message, forDocument: msgRef)
+
+        // Update conversation metadata
+        let convRef = db.collection("conversations").document(conversationId)
+        batch.updateData([
+            "lastMessage": text,
+            "lastMessageAt": Timestamp(date: .now),
+            "lastSenderId": senderId,
+        ], forDocument: convRef)
+
+        try await batch.commit()
     }
 
-    func startConversation(between userA: String, and userB: String) -> Conversation {
+    // MARK: - Start Conversation
+
+    func startConversation(between userA: String, and userB: String) async throws -> Conversation {
         // Check if conversation already exists
         if let existing = conversations.first(where: {
             $0.participantIds.contains(userA) && $0.participantIds.contains(userB)
@@ -60,9 +108,12 @@ final class MessageService {
             unreadCount: 0,
             createdAt: .now
         )
-        conversations.append(conversation)
+
+        try db.collection("conversations").document(conversation.id).setData(from: conversation)
         return conversation
     }
+
+    // MARK: - Preview
 
     static var preview: MessageService {
         let service = MessageService()

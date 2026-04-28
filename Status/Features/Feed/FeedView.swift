@@ -43,19 +43,14 @@ struct FeedView: View {
             .padding(.vertical)
         }
         .navigationTitle("Feed")
-        .refreshable {
-            if let user = currentUser {
-                let audience = statusEngine.broadcastAudience(for: user.id)
-                await broadcastService.loadFeed(for: user.id, audience: audience)
-            }
-        }
         .sheet(isPresented: $showCompose) {
             ComposeBroadcastView()
         }
         .task {
             if let user = currentUser {
+                statusEngine.startListening(for: user.id)
                 let audience = statusEngine.broadcastAudience(for: user.id)
-                await broadcastService.loadFeed(for: user.id, audience: audience)
+                broadcastService.startListening(authorIds: audience)
             }
         }
     }

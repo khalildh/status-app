@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import FirebaseFirestore
 
 @Observable
 final class AuthService {
@@ -9,10 +10,14 @@ final class AuthService {
     var error: String?
 
     private var authHandle: AuthStateDidChangeListenerHandle?
+    private var userListener: ListenerRegistration?
+    @ObservationIgnored private var _db: Firestore? = nil
+    private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
 
     init() {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" ||
+           ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
             currentUser = .mock
             return
         }
@@ -29,6 +34,7 @@ final class AuthService {
                 }
             } else {
                 Task { @MainActor in
+                    self.userListener?.remove()
                     self.currentUser = nil
                 }
             }
@@ -40,7 +46,20 @@ final class AuthService {
         error = nil
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
-            await createUserProfile(firebaseId: result.user.uid, email: email, username: username)
+            let user = User(
+                id: result.user.uid,
+                username: username,
+                displayName: username,
+                joinedAt: .now,
+                statusBalance: User.weeklyFreePoints,
+                weeklyRefillAmount: User.weeklyFreePoints,
+                lastRefillDate: .now,
+                totalStatusReceived: 0,
+                broadcastsToday: 0
+            )
+            try db.collection("users").document(user.id).setData(from: user)
+            currentUser = user
+            listenToUserDocument(userId: user.id)
         } catch {
             self.error = error.localizedDescription
         }
@@ -59,38 +78,45 @@ final class AuthService {
     }
 
     func signOut() {
+        userListener?.remove()
         try? Auth.auth().signOut()
         currentUser = nil
     }
 
     private func fetchOrCreateUser(firebaseId: String, email: String?) async {
-        // In production: fetch from Firestore
-        // For now, create a local user
-        currentUser = User(
-            id: firebaseId,
-            username: email?.components(separatedBy: "@").first ?? "user",
-            displayName: email?.components(separatedBy: "@").first ?? "User",
-            joinedAt: .now,
-            statusBalance: User.weeklyFreePoints,
-            weeklyRefillAmount: User.weeklyFreePoints,
-            lastRefillDate: .now,
-            totalStatusReceived: 0,
-            broadcastsToday: 0
-        )
+        do {
+            let doc = try await db.collection("users").document(firebaseId).getDocument()
+            if doc.exists {
+                currentUser = try doc.data(as: User.self)
+            } else {
+                let user = User(
+                    id: firebaseId,
+                    username: email?.components(separatedBy: "@").first ?? "user",
+                    displayName: email?.components(separatedBy: "@").first ?? "User",
+                    joinedAt: .now,
+                    statusBalance: User.weeklyFreePoints,
+                    weeklyRefillAmount: User.weeklyFreePoints,
+                    lastRefillDate: .now,
+                    totalStatusReceived: 0,
+                    broadcastsToday: 0
+                )
+                try db.collection("users").document(firebaseId).setData(from: user)
+                currentUser = user
+            }
+            listenToUserDocument(userId: firebaseId)
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
-    private func createUserProfile(firebaseId: String, email: String, username: String) async {
-        currentUser = User(
-            id: firebaseId,
-            username: username,
-            displayName: username,
-            joinedAt: .now,
-            statusBalance: User.weeklyFreePoints,
-            weeklyRefillAmount: User.weeklyFreePoints,
-            lastRefillDate: .now,
-            totalStatusReceived: 0,
-            broadcastsToday: 0
-        )
+    /// Real-time listener on the current user's document so balance/status updates sync live.
+    private func listenToUserDocument(userId: String) {
+        userListener?.remove()
+        userListener = db.collection("users").document(userId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self, let snapshot, snapshot.exists else { return }
+                self.currentUser = try? snapshot.data(as: User.self)
+            }
     }
 
     // MARK: - Preview helper

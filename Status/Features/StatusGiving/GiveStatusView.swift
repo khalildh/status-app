@@ -92,14 +92,18 @@ struct GiveStatusView: View {
     }
 
     private func send() {
-        guard var user = auth.currentUser else { return }
-        let _ = statusEngine.giveStatus(from: &user, to: recipientId, amount: amount)
-        auth.currentUser = user
-        withAnimation(.spring(duration: 0.4)) {
-            didSend = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            dismiss()
+        guard let user = auth.currentUser else { return }
+        Task {
+            do {
+                try await statusEngine.giveStatus(from: user, to: recipientId, amount: amount)
+                withAnimation(.spring(duration: 0.4)) {
+                    didSend = true
+                }
+                try? await Task.sleep(for: .seconds(1.5))
+                dismiss()
+            } catch {
+                statusEngine.error = error.localizedDescription
+            }
         }
     }
 }

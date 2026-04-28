@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseFirestore
 
 @Observable
 final class StatusEngine {
@@ -6,41 +7,68 @@ final class StatusEngine {
     var isLoading = false
     var error: String?
 
+    @ObservationIgnored private var _db: Firestore? = nil
+    private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
+    private var listener: ListenerRegistration?
+
+    deinit {
+        listener?.remove()
+    }
+
+    // MARK: - Real-time Listener
+
+    /// Start listening to all active (non-expired) transactions relevant to this user.
+    func startListening(for userId: String) {
+        listener?.remove()
+
+        let cutoff = Date.now.addingTimeInterval(-StatusTransaction.decayWindowDays)
+
+        listener = db.collection("statusTransactions")
+            .whereField("createdAt", isGreaterThan: Timestamp(date: cutoff))
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+                if let error {
+                    self.error = error.localizedDescription
+                    return
+                }
+                guard let docs = snapshot?.documents else { return }
+                self.transactions = docs.compactMap { try? $0.data(as: StatusTransaction.self) }
+            }
+    }
+
+    func stopListening() {
+        listener?.remove()
+        listener = nil
+    }
+
     // MARK: - Core Rules
 
     /// Can `fromUser` message `toUser`?
-    /// Rules:
-    /// 1. You can message anyone with less status than you
-    /// 2. You can message someone if you gave status to someone who gave status to them (transitive)
-    func canMessage(from fromUser: User, to toUser: User) -> Bool {
-        // Rule 1: Higher status can message down
+    /// Block check is done externally via BlockService — this only checks status rules.
+    func canMessage(from fromUser: User, to toUser: User, blockedIds: Set<String> = []) -> Bool {
+        // Blocked users can never message each other
+        if blockedIds.contains(fromUser.id) || blockedIds.contains(toUser.id) {
+            return false
+        }
         if fromUser.totalStatusReceived > toUser.totalStatusReceived {
             return true
         }
-
-        // Rule 2: Transitive — check if there's a path through status-giving
         return hasTransitivePath(from: fromUser.id, to: toUser.id)
     }
 
-    /// Check for transitive messaging path:
-    /// fromUser gave status to intermediary, and intermediary gave status to toUser
     private func hasTransitivePath(from fromId: String, to toId: String) -> Bool {
-        let activeTransactions = transactions.filter { !$0.isExpired }
+        let active = transactions.filter { !$0.isExpired }
 
-        // Direct: fromUser gave status to toUser
-        if activeTransactions.contains(where: { $0.fromUserId == fromId && $0.toUserId == toId }) {
+        if active.contains(where: { $0.fromUserId == fromId && $0.toUserId == toId }) {
             return true
         }
 
-        // Transitive: fromUser gave status to X, and X gave status to toUser
         let peopleFromUserGaveStatusTo = Set(
-            activeTransactions
-                .filter { $0.fromUserId == fromId }
-                .map { $0.toUserId }
+            active.filter { $0.fromUserId == fromId }.map { $0.toUserId }
         )
 
         for intermediary in peopleFromUserGaveStatusTo {
-            if activeTransactions.contains(where: { $0.fromUserId == intermediary && $0.toUserId == toId }) {
+            if active.contains(where: { $0.fromUserId == intermediary && $0.toUserId == toId }) {
                 return true
             }
         }
@@ -50,15 +78,13 @@ final class StatusEngine {
 
     // MARK: - Giving Status
 
-    func giveStatus(from fromUser: inout User, to toUserId: String, amount: Int) -> StatusTransaction? {
+    func giveStatus(from fromUser: User, to toUserId: String, amount: Int) async throws {
         guard amount > 0, fromUser.statusBalance >= amount else {
             error = fromUser.statusBalance == 0
                 ? "No status points left. Refills weekly or buy more."
                 : "Not enough status points."
-            return nil
+            return
         }
-
-        fromUser.statusBalance -= amount
 
         let transaction = StatusTransaction(
             id: UUID().uuidString,
@@ -70,20 +96,28 @@ final class StatusEngine {
             weightedValue: Double(amount) * statusWeight(for: fromUser)
         )
 
-        transactions.append(transaction)
-        return transaction
+        // Write transaction
+        try db.collection("statusTransactions").document(transaction.id).setData(from: transaction)
+
+        // Debit sender's balance
+        try await db.collection("users").document(fromUser.id).updateData([
+            "statusBalance": FieldValue.increment(Int64(-amount))
+        ])
+
+        // Credit receiver's weighted score
+        try await db.collection("users").document(toUserId).updateData([
+            "totalStatusReceived": FieldValue.increment(transaction.weightedValue)
+        ])
     }
 
-    /// Weight of a status gift is based on the giver's own incoming status.
-    /// Higher-status givers make their gifts count more on the leaderboard.
     func statusWeight(for user: User) -> Double {
         let base = max(1.0, user.totalStatusReceived)
-        return log2(base + 1) // Logarithmic scaling to prevent runaway whale effects
+        return log2(base + 1)
     }
 
     // MARK: - Weekly Refill
 
-    func refillIfNeeded(user: inout User) {
+    func refillIfNeeded(user: User) async throws {
         let calendar = Calendar.current
         let lastRefill = calendar.startOfDay(for: user.lastRefillDate)
         let today = calendar.startOfDay(for: .now)
@@ -91,58 +125,68 @@ final class StatusEngine {
         guard let daysSince = calendar.dateComponents([.day], from: lastRefill, to: today).day,
               daysSince >= 7 else { return }
 
-        user.statusBalance += user.weeklyRefillAmount
-        user.lastRefillDate = today
+        try await db.collection("users").document(user.id).updateData([
+            "statusBalance": FieldValue.increment(Int64(user.weeklyRefillAmount)),
+            "lastRefillDate": Timestamp(date: today)
+        ])
     }
 
     // MARK: - Leaderboard
 
-    func computeLeaderboard() -> [LeaderboardEntry] {
-        let active = transactions.filter { !$0.isExpired }
+    func fetchLeaderboard(scope: LeaderboardScope, limit: Int = 50) async throws -> [LeaderboardEntry] {
+        let docs = try await db.collection("users")
+            .order(by: "totalStatusReceived", descending: true)
+            .limit(to: limit)
+            .getDocuments()
 
-        // Group by recipient, sum weighted values
-        var scores: [String: Double] = [:]
-        for tx in active {
-            scores[tx.toUserId, default: 0] += tx.weightedValue
+        return docs.documents.enumerated().compactMap { index, doc in
+            guard let user = try? doc.data(as: User.self) else { return nil }
+            return LeaderboardEntry(
+                userId: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                avatarURL: user.avatarURL,
+                rank: index + 1,
+                weightedScore: user.totalStatusReceived,
+                changeFromLastWeek: 0 // TODO: compute from weekly snapshots
+            )
         }
-
-        return scores
-            .sorted { $0.value > $1.value }
-            .enumerated()
-            .map { index, entry in
-                LeaderboardEntry(
-                    userId: entry.key,
-                    username: entry.key,
-                    displayName: entry.key,
-                    rank: index + 1,
-                    weightedScore: entry.value,
-                    changeFromLastWeek: 0
-                )
-            }
     }
 
     // MARK: - Broadcast Eligibility
 
-    /// Users who gave you status receive your broadcasts
-    func broadcastAudience(for userId: String) -> [String] {
+    func broadcastAudience(for userId: String, excluding blockedIds: Set<String> = []) -> [String] {
         let active = transactions.filter { !$0.isExpired }
-        // People who gave status TO this user — they opted in by elevating
         let directAudience = Set(active.filter { $0.toUserId == userId }.map { $0.fromUserId })
 
-        // Transitive: people who gave status to someone in the direct audience
         var fullAudience = directAudience
         for member in directAudience {
             let transitive = active.filter { $0.toUserId == member }.map { $0.fromUserId }
             fullAudience.formUnion(transitive)
         }
 
-        fullAudience.remove(userId) // Don't broadcast to yourself
+        fullAudience.remove(userId)
+        fullAudience.subtract(blockedIds)
         return Array(fullAudience)
     }
 
     func canBroadcast(user: User) -> Bool {
         guard let lastBroadcast = user.lastBroadcastDate else { return true }
         return !Calendar.current.isDate(lastBroadcast, inSameDayAs: .now)
+    }
+
+    // MARK: - User Search
+
+    func searchUsers(query: String) async throws -> [User] {
+        guard !query.isEmpty else { return [] }
+        let lowered = query.lowercased()
+        // Firestore doesn't support full-text search, so we use prefix matching
+        let docs = try await db.collection("users")
+            .whereField("username", isGreaterThanOrEqualTo: lowered)
+            .whereField("username", isLessThanOrEqualTo: lowered + "\u{f8ff}")
+            .limit(to: 20)
+            .getDocuments()
+        return docs.documents.compactMap { try? $0.data(as: User.self) }
     }
 
     // MARK: - Preview helper

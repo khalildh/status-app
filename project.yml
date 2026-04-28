@@ -38,3 +38,13 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         CODE_SIGN_IDENTITY: "Apple Development"
         CODE_SIGN_STYLE: Automatic
+  StatusTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - StatusTests
+    dependencies:
+      - target: Status
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true

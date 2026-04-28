@@ -4,9 +4,11 @@ struct ChatView: View {
     @Environment(AuthService.self) private var auth
     @Environment(MessageService.self) private var messageService
     @Environment(StatusEngine.self) private var statusEngine
+    @Environment(BlockService.self) private var blockService
     let conversation: Conversation
 
     @State private var newMessage = ""
+    @State private var showBlockConfirmation = false
     @FocusState private var isFocused: Bool
 
     private var currentUserId: String { auth.currentUser?.id ?? "" }
@@ -66,15 +68,50 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    GiveStatusView(recipientId: otherUserId)
-                } label: {
-                    Image(systemName: "arrow.up.circle")
+                HStack(spacing: 12) {
+                    NavigationLink {
+                        GiveStatusView(recipientId: otherUserId)
+                    } label: {
+                        Image(systemName: "arrow.up.circle")
+                    }
+
+                    Menu {
+                        Button(role: .destructive) {
+                            showBlockConfirmation = true
+                        } label: {
+                            Label("Block User", systemImage: "hand.raised")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
                 }
             }
         }
+        .confirmationDialog(
+            "Block \(otherUserId)?",
+            isPresented: $showBlockConfirmation,
+            titleVisibility: .visible
+        ) {
+            ForEach(BlockReason.allCases, id: \.self) { reason in
+                Button(reason.rawValue, role: .destructive) {
+                    Task {
+                        try? await blockService.blockUser(
+                            blockerId: currentUserId,
+                            blockedUserId: otherUserId,
+                            reason: reason
+                        )
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They won't be able to message you or send you status. Select a reason:")
+        }
         .task {
-            await messageService.loadMessages(for: conversation.id)
+            messageService.startListeningToMessages(for: conversation.id)
+        }
+        .onDisappear {
+            messageService.stopListeningToMessages(for: conversation.id)
         }
     }
 
@@ -82,7 +119,7 @@ struct ChatView: View {
         let text = newMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         newMessage = ""
-        await messageService.sendMessage(
+        try? await messageService.sendMessage(
             conversationId: conversation.id,
             senderId: currentUserId,
             text: text
