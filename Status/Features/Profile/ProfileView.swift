@@ -65,10 +65,21 @@ struct ProfileView: View {
         .navigationTitle("Profile")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showEditProfile = true
-                } label: {
-                    Image(systemName: "pencil.circle")
+                HStack(spacing: 12) {
+                    if let user {
+                        ShareLink(
+                            item: DeepLinkHandler.profileURL(userId: user.id),
+                            subject: Text("Check out my Status profile"),
+                            message: Text("Give me status on the Status app!")
+                        ) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                    Button {
+                        showEditProfile = true
+                    } label: {
+                        Image(systemName: "pencil.circle")
+                    }
                 }
             }
         }

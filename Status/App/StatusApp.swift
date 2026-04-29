@@ -12,6 +12,7 @@ struct StatusApp: App {
     @State private var notificationService = NotificationService()
     @State private var storageService = StorageService()
     @State private var storeService = StoreService()
+    @State private var deepLinkHandler = DeepLinkHandler()
 
     init() {
         FirebaseApp.configure()
@@ -30,8 +31,12 @@ struct StatusApp: App {
                 .environment(notificationService)
                 .environment(storageService)
                 .environment(storeService)
+                .environment(deepLinkHandler)
                 .onAppear {
                     notificationService.configure()
+                }
+                .onOpenURL { url in
+                    deepLinkHandler.handle(url: url)
                 }
         }
     }
