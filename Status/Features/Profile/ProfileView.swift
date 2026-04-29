@@ -4,24 +4,19 @@ struct ProfileView: View {
     @Environment(AuthService.self) private var auth
     @Environment(StatusEngine.self) private var statusEngine
     @Environment(LeaderboardService.self) private var leaderboardService
-    @State private var showGiveStatus = false
+    @State private var showEditProfile = false
+    @State private var showStore = false
 
     private var user: User? { auth.currentUser }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Profile header
                 if let user {
                     profileHeader(user)
-                }
-
-                // Stats grid
-                if let user {
                     statsGrid(user)
                 }
 
-                // Status activity
                 statusActivity
 
                 // Actions
@@ -35,6 +30,24 @@ struct ProfileView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.primary)
+
+                    Button {
+                        showStore = true
+                    } label: {
+                        Label("Buy More Points", systemImage: "cart")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.bordered)
+
+                    NavigationLink {
+                        StatusHistoryView()
+                    } label: {
+                        Label("Status History", systemImage: "clock.arrow.circlepath")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.bordered)
 
                     Button(role: .destructive) {
                         auth.signOut()
@@ -50,20 +63,33 @@ struct ProfileView: View {
             .padding(.vertical)
         }
         .navigationTitle("Profile")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showEditProfile = true
+                } label: {
+                    Image(systemName: "pencil.circle")
+                }
+            }
+        }
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileView()
+        }
+        .sheet(isPresented: $showStore) {
+            StoreView()
+        }
+        .task {
+            if let user {
+                try? await statusEngine.refillIfNeeded(user: user)
+            }
+        }
     }
 
     // MARK: - Profile Header
 
     private func profileHeader(_ user: User) -> some View {
         VStack(spacing: 12) {
-            Circle()
-                .fill(.quaternary)
-                .frame(width: 80, height: 80)
-                .overlay {
-                    Text(user.displayName.prefix(1).uppercased())
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                }
+            AvatarView(user: user, size: 80)
 
             VStack(spacing: 4) {
                 Text(user.displayName)
@@ -117,14 +143,21 @@ struct ProfileView: View {
 
     private var statusActivity: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Activity")
-                .font(.headline)
-                .padding(.horizontal)
+            HStack {
+                Text("Recent Activity")
+                    .font(.headline)
+                Spacer()
+                NavigationLink("See All") {
+                    StatusHistoryView()
+                }
+                .font(.subheadline)
+            }
+            .padding(.horizontal)
 
             let recentTransactions = statusEngine.transactions
                 .filter { $0.fromUserId == user?.id || $0.toUserId == user?.id }
                 .sorted { $0.createdAt > $1.createdAt }
-                .prefix(5)
+                .prefix(3)
 
             if recentTransactions.isEmpty {
                 Text("No activity yet. Give someone status to get started.")
@@ -172,4 +205,6 @@ struct ProfileView: View {
     .environment(AuthService.preview)
     .environment(StatusEngine.preview)
     .environment(LeaderboardService.preview)
+    .environment(StorageService.preview)
+    .environment(StoreService.preview)
 }

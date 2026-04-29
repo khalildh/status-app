@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct GiveStatusView: View {
     @Environment(AuthService.self) private var auth
@@ -38,7 +39,10 @@ struct GiveStatusView: View {
 
                 HStack(spacing: 24) {
                     Button {
-                        if amount > 1 { amount -= 1 }
+                        if amount > 1 {
+                            amount -= 1
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
                     } label: {
                         Image(systemName: "minus.circle.fill")
                             .font(.title)
@@ -48,9 +52,14 @@ struct GiveStatusView: View {
                     Text("\(amount)")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .frame(minWidth: 80)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: amount)
 
                     Button {
-                        if amount < maxAmount { amount += 1 }
+                        if amount < maxAmount {
+                            amount += 1
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title)
@@ -96,12 +105,16 @@ struct GiveStatusView: View {
         Task {
             do {
                 try await statusEngine.giveStatus(from: user, to: recipientId, amount: amount)
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
                 withAnimation(.spring(duration: 0.4)) {
                     didSend = true
                 }
                 try? await Task.sleep(for: .seconds(1.5))
                 dismiss()
             } catch {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
                 statusEngine.error = error.localizedDescription
             }
         }

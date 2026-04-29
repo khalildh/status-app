@@ -189,6 +189,19 @@ final class StatusEngine {
         return docs.documents.compactMap { try? $0.data(as: User.self) }
     }
 
+    // MARK: - Discovery
+
+    func fetchSuggestedUsers(currentUserId: String, limit: Int = 20) async throws -> [User] {
+        // Show recently active users sorted by status received
+        let docs = try await db.collection("users")
+            .order(by: "totalStatusReceived", descending: true)
+            .limit(to: limit + 1)
+            .getDocuments()
+        return docs.documents
+            .compactMap { try? $0.data(as: User.self) }
+            .filter { $0.id != currentUserId }
+    }
+
     // MARK: - Preview helper
 
     static var preview: StatusEngine {

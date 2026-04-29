@@ -9,6 +9,9 @@ struct StatusApp: App {
     @State private var broadcastService = BroadcastService()
     @State private var leaderboardService = LeaderboardService()
     @State private var blockService = BlockService()
+    @State private var notificationService = NotificationService()
+    @State private var storageService = StorageService()
+    @State private var storeService = StoreService()
 
     init() {
         FirebaseApp.configure()
@@ -24,6 +27,12 @@ struct StatusApp: App {
                 .environment(broadcastService)
                 .environment(leaderboardService)
                 .environment(blockService)
+                .environment(notificationService)
+                .environment(storageService)
+                .environment(storeService)
+                .onAppear {
+                    notificationService.configure()
+                }
         }
     }
 }
