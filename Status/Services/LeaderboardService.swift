@@ -21,16 +21,21 @@ final class LeaderboardService {
                 .getDocuments()
 
             entries = docs.documents.enumerated().compactMap { index, doc in
-                guard let user = try? doc.data(as: User.self) else { return nil }
-                return LeaderboardEntry(
-                    userId: user.id,
-                    username: user.username,
-                    displayName: user.displayName,
-                    avatarURL: user.avatarURL,
-                    rank: index + 1,
-                    weightedScore: user.totalStatusReceived,
-                    changeFromLastWeek: 0
-                )
+                do {
+                    let user = try doc.data(as: User.self)
+                    return LeaderboardEntry(
+                        userId: user.id,
+                        username: user.username,
+                        displayName: user.displayName,
+                        avatarURL: user.avatarURL,
+                        rank: index + 1,
+                        weightedScore: user.totalStatusReceived,
+                        changeFromLastWeek: 0
+                    )
+                } catch {
+                    print("[Leaderboard] Failed to decode user \(doc.documentID): \(error)")
+                    return nil
+                }
             }
         } catch {
             entries = []
