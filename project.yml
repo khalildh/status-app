@@ -42,6 +42,7 @@ targets:
         CODE_SIGN_IDENTITY: "Apple Development"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: TVAG3T3Y65
+        CODE_SIGN_ENTITLEMENTS: Status/Status.entitlements
     info:
       path: Status/Info.plist
       properties:
@@ -51,6 +52,8 @@ targets:
             CFBundleURLName: com.statusapp.Status
         NSLocationWhenInUseUsageDescription: Status uses your location to verify you're in New York City, where the app is currently available.
         UIRequiresFullScreen: true
+        UIBackgroundModes:
+          - remote-notification
   StatusTests:
     type: bundle.unit-test
     platform: iOS
