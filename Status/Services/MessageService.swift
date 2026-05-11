@@ -64,7 +64,8 @@ final class MessageService {
 
     // MARK: - Send Message
 
-    func sendMessage(conversationId: String, senderId: String, text: String, ephemeralPublicKey: String? = nil) async throws {
+    @discardableResult
+    func sendMessage(conversationId: String, senderId: String, text: String, ephemeralPublicKey: String? = nil) async throws -> String {
         let message = Message(
             id: UUID().uuidString,
             conversationId: conversationId,
@@ -92,6 +93,7 @@ final class MessageService {
         ], forDocument: convRef)
 
         try await batch.commit()
+        return message.id
     }
 
     // MARK: - Start Conversation

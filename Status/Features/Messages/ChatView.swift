@@ -29,16 +29,18 @@ struct ChatView: View {
                     LazyVStack(spacing: 8) {
                         ForEach(messages) { message in
                             let displayText = decryptedTexts[message.id]
-                                ?? (message.isEncrypted ? "..." : message.text)
-                            MessageBubble(
-                                message: message,
-                                displayText: displayText,
-                                isFromCurrentUser: message.senderId == currentUserId
-                            )
-                            .id(message.id)
-                            .task {
-                                await decryptIfNeeded(message)
+                                ?? (message.isEncrypted ? nil : message.text)
+                            if let displayText {
+                                MessageBubble(
+                                    message: message,
+                                    displayText: displayText,
+                                    isFromCurrentUser: message.senderId == currentUserId
+                                )
+                                .id(message.id)
                             }
+                            Color.clear
+                                .frame(height: 0)
+                                .task { await decryptIfNeeded(message) }
                         }
                     }
                     .padding()
@@ -139,16 +141,14 @@ struct ChatView: View {
             print("[ChatView] Encryption failed, sending plaintext: \(error)")
         }
 
-        try? await messageService.sendMessage(
+        // Pre-cache plaintext so the bubble shows immediately after Firestore delivers it
+        if let msgId = try? await messageService.sendMessage(
             conversationId: conversation.id,
             senderId: currentUserId,
             text: textToSend,
             ephemeralPublicKey: ephemeralKey
-        )
-
-        // Cache the decrypted version for immediate display
-        if let lastMsg = messages.last {
-            decryptedTexts[lastMsg.id] = text
+        ) {
+            decryptedTexts[msgId] = text
         }
     }
 
