@@ -25,3 +25,4 @@ GoogleService-Info.plist
 .DS_Store
 *.swp
 *~
+functions/node_modules
