@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+@preconcurrency import FirebaseFirestore
 
 struct GiveStatusView: View {
     @Environment(AuthService.self) private var auth
@@ -7,6 +8,7 @@ struct GiveStatusView: View {
     @Environment(MessageService.self) private var messageService
     @Environment(\.dismiss) private var dismiss
     let recipientId: String
+    @State private var recipientName: String = ""
 
     @State private var amount: Int = 1
     @State private var didSend = false
@@ -21,15 +23,8 @@ struct GiveStatusView: View {
 
             // Recipient
             VStack(spacing: 8) {
-                Circle()
-                    .fill(.quaternary)
-                    .frame(width: 80, height: 80)
-                    .overlay {
-                        Text(recipientId.prefix(1).uppercased())
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                    }
-                Text(recipientId)
+                AvatarPlaceholder(name: recipientName.isEmpty ? recipientId : recipientName, size: 80)
+                Text(recipientName.isEmpty ? recipientId : recipientName)
                     .font(.headline)
             }
 
@@ -98,6 +93,13 @@ struct GiveStatusView: View {
             Spacer()
         }
         .navigationTitle("Give Status")
+        .task {
+            let db = Firestore.firestore()
+            if let doc = try? await db.collection("users").document(recipientId).getDocument(),
+               let user = try? doc.data(as: User.self) {
+                recipientName = user.displayName
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
     }
 
