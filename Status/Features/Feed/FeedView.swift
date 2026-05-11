@@ -1,10 +1,12 @@
 import SwiftUI
+@preconcurrency import FirebaseFirestore
 
 struct FeedView: View {
     @Environment(AuthService.self) private var auth
     @Environment(BroadcastService.self) private var broadcastService
     @Environment(StatusEngine.self) private var statusEngine
     @State private var showCompose = false
+    @State private var authorNames: [String: String] = [:]
 
     private var currentUser: User? { auth.currentUser }
 
@@ -35,7 +37,7 @@ struct FeedView: View {
                     .padding(.top, 40)
                 } else {
                     ForEach(broadcastService.feed) { broadcast in
-                        BroadcastCard(broadcast: broadcast)
+                        BroadcastCard(broadcast: broadcast, authorName: authorNames[broadcast.authorId] ?? broadcast.authorId)
                             .padding(.horizontal)
                     }
                 }
@@ -51,6 +53,22 @@ struct FeedView: View {
                 statusEngine.startListening(for: user.id)
                 let audience = statusEngine.broadcastAudience(for: user.id)
                 broadcastService.startListening(authorIds: audience)
+            }
+        }
+        .onChange(of: broadcastService.feed.count) {
+            Task { await fetchAuthorNames() }
+        }
+    }
+
+    private func fetchAuthorNames() async {
+        let db = Firestore.firestore()
+        for broadcast in broadcastService.feed {
+            let id = broadcast.authorId
+            if authorNames[id] == nil {
+                if let doc = try? await db.collection("users").document(id).getDocument(),
+                   let user = try? doc.data(as: User.self) {
+                    authorNames[id] = user.displayName
+                }
             }
         }
     }
@@ -116,22 +134,16 @@ struct ComposeBroadcastButton: View {
 
 struct BroadcastCard: View {
     let broadcast: Broadcast
+    let authorName: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Author row
             HStack {
-                Circle()
-                    .fill(.quaternary)
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Text(broadcast.authorId.prefix(1).uppercased())
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
+                AvatarPlaceholder(name: authorName, size: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(broadcast.authorId)
+                    Text(authorName)
                         .font(.subheadline.weight(.semibold))
                     Text(timeAgo(broadcast.createdAt))
                         .font(.caption)
