@@ -126,23 +126,32 @@ struct ChatView: View {
         guard !text.isEmpty else { return }
         newMessage = ""
 
-        // Encrypt with ephemeral key for forward secrecy
+        // Encrypt for recipient
         var textToSend = text
         var ephemeralKey: String?
+        var senderCiphertext: String?
+        var senderEphemeralKey: String?
+
         do {
-            let encrypted = try await crypto.encrypt(text, for: otherUserId)
-            textToSend = encrypted.ciphertext
-            ephemeralKey = encrypted.ephemeralPublicKey
+            let forRecipient = try await crypto.encrypt(text, for: otherUserId)
+            textToSend = forRecipient.ciphertext
+            ephemeralKey = forRecipient.ephemeralPublicKey
+
+            // Also encrypt for sender (so we can read our own messages later)
+            let forSender = try await crypto.encrypt(text, for: currentUserId)
+            senderCiphertext = forSender.ciphertext
+            senderEphemeralKey = forSender.ephemeralPublicKey
         } catch {
             print("[ChatView] Encryption failed, sending plaintext: \(error)")
         }
 
-        // Pre-cache plaintext so the bubble shows immediately after Firestore delivers it
         if let msgId = try? await messageService.sendMessage(
             conversationId: conversation.id,
             senderId: currentUserId,
             text: textToSend,
-            ephemeralPublicKey: ephemeralKey
+            ephemeralPublicKey: ephemeralKey,
+            senderCiphertext: senderCiphertext,
+            senderEphemeralPublicKey: senderEphemeralKey
         ) {
             decryptedTexts[msgId] = text
         }
@@ -152,19 +161,34 @@ struct ChatView: View {
         guard decryptedTexts[message.id] == nil else { return }
 
         if message.isEncrypted {
+            let isMine = message.senderId == currentUserId
+
+            // Pick the right ciphertext + ephemeral key based on who's reading
+            let ciphertext: String
+            let ephKey: String?
+            if isMine, let sc = message.senderCiphertext, let sek = message.senderEphemeralPublicKey {
+                // Sender reading their own message — use sender copy
+                ciphertext = sc
+                ephKey = sek
+            } else {
+                // Recipient reading — use main copy
+                ciphertext = message.text
+                ephKey = message.ephemeralPublicKey
+            }
+
             do {
                 let decrypted = try await crypto.decrypt(
                     EncryptedMessage(
-                        ciphertext: message.text,
-                        ephemeralPublicKey: message.ephemeralPublicKey,
+                        ciphertext: ciphertext,
+                        ephemeralPublicKey: ephKey,
                         isEncrypted: true
                     ),
-                    from: message.senderId
+                    from: message.senderId // unused for ephemeral, only for legacy fallback
                 )
                 decryptedTexts[message.id] = decrypted
                 return
             } catch {
-                print("[ChatView] Decryption failed for \(message.id): \(error)")
+                print("[ChatView] Decryption failed for \(message.id) (isMine=\(isMine)): \(error)")
             }
         }
 

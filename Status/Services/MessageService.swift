@@ -65,14 +65,16 @@ final class MessageService {
     // MARK: - Send Message
 
     @discardableResult
-    func sendMessage(conversationId: String, senderId: String, text: String, ephemeralPublicKey: String? = nil) async throws -> String {
+    func sendMessage(conversationId: String, senderId: String, text: String, ephemeralPublicKey: String? = nil, senderCiphertext: String? = nil, senderEphemeralPublicKey: String? = nil) async throws -> String {
         let message = Message(
             id: UUID().uuidString,
             conversationId: conversationId,
             senderId: senderId,
             text: text,
             ephemeralPublicKey: ephemeralPublicKey,
-            sentAt: .now
+            sentAt: .now,
+            senderCiphertext: senderCiphertext,
+            senderEphemeralPublicKey: senderEphemeralPublicKey
         )
 
         let batch = db.batch()

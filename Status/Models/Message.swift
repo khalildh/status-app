@@ -4,10 +4,12 @@ struct Message: Identifiable, Codable, Hashable {
     var id: String
     var conversationId: String
     var senderId: String
-    var text: String              // Ciphertext when encrypted
-    var ephemeralPublicKey: String? // Sender's ephemeral key for forward secrecy
+    var text: String                    // Ciphertext for recipient
+    var ephemeralPublicKey: String?     // Ephemeral key for recipient to decrypt
     var sentAt: Date
     var readAt: Date?
+    var senderCiphertext: String?       // Ciphertext for sender to decrypt their own message
+    var senderEphemeralPublicKey: String? // Ephemeral key for sender to decrypt
 
     var isRead: Bool { readAt != nil }
     var isEncrypted: Bool { ephemeralPublicKey != nil }
