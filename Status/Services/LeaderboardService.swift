@@ -20,9 +20,12 @@ final class LeaderboardService {
                 .limit(to: 100)
                 .getDocuments()
 
+            print("[Leaderboard] Query returned \(docs.documents.count) documents")
+
             entries = docs.documents.enumerated().compactMap { index, doc in
                 do {
                     let user = try doc.data(as: User.self)
+                    print("[Leaderboard] Decoded: @\(user.username) (\(user.totalStatusReceived))")
                     return LeaderboardEntry(
                         userId: user.id,
                         username: user.username,
@@ -37,7 +40,9 @@ final class LeaderboardService {
                     return nil
                 }
             }
+            print("[Leaderboard] Final entries: \(entries.count)")
         } catch {
+            print("[Leaderboard] Query failed: \(error)")
             entries = []
         }
         isLoading = false
