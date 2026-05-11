@@ -4,6 +4,7 @@ import UIKit
 struct GiveStatusView: View {
     @Environment(AuthService.self) private var auth
     @Environment(StatusEngine.self) private var statusEngine
+    @Environment(MessageService.self) private var messageService
     @Environment(\.dismiss) private var dismiss
     let recipientId: String
 
@@ -105,6 +106,8 @@ struct GiveStatusView: View {
         Task {
             do {
                 try await statusEngine.giveStatus(from: user, to: recipientId, amount: amount)
+                // Create a conversation so they appear in messages
+                let _ = try? await messageService.startConversation(between: user.id, and: recipientId)
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
                 withAnimation(.spring(duration: 0.4)) {
