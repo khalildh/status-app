@@ -39,7 +39,7 @@ final class LocationGate: NSObject {
         }
     }
 
-    private func evaluate(_ location: CLLocation) {
+    func evaluate(_ location: CLLocation) {
         let lat = location.coordinate.latitude
         let lon = location.coordinate.longitude
         let nyc = Self.nycRegion
