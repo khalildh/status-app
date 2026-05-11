@@ -1,4 +1,5 @@
 import SwiftUI
+@preconcurrency import FirebaseFirestore
 
 enum HistoryFilter: String, CaseIterable {
     case all = "All"
@@ -10,6 +11,7 @@ struct StatusHistoryView: View {
     @Environment(AuthService.self) private var auth
     @Environment(StatusEngine.self) private var statusEngine
     @State private var filter: HistoryFilter = .all
+    @State private var userNames: [String: String] = [:]
 
     private var currentUserId: String { auth.currentUser?.id ?? "" }
 
@@ -45,23 +47,41 @@ struct StatusHistoryView: View {
                 List(filteredTransactions) { tx in
                     StatusTransactionRow(
                         transaction: tx,
-                        currentUserId: currentUserId
+                        currentUserId: currentUserId,
+                        userNames: userNames
                     )
                 }
                 .listStyle(.plain)
             }
         }
         .navigationTitle("Status History")
+        .task { await fetchUserNames() }
+    }
+
+    private func fetchUserNames() async {
+        let db = Firestore.firestore()
+        let txns = statusEngine.transactions.filter { $0.fromUserId == currentUserId || $0.toUserId == currentUserId }
+        let ids = Set(txns.flatMap { [$0.fromUserId, $0.toUserId] }).subtracting([currentUserId])
+        for id in ids where userNames[id] == nil {
+            if let doc = try? await db.collection("users").document(id).getDocument(),
+               let u = try? doc.data(as: User.self) {
+                userNames[id] = u.displayName
+            }
+        }
     }
 }
 
 struct StatusTransactionRow: View {
     let transaction: StatusTransaction
     let currentUserId: String
+    var userNames: [String: String] = [:]
 
     private var isSent: Bool { transaction.fromUserId == currentUserId }
     private var otherUserId: String {
         isSent ? transaction.toUserId : transaction.fromUserId
+    }
+    private var otherName: String {
+        userNames[otherUserId] ?? otherUserId
     }
 
     var body: some View {
@@ -71,7 +91,7 @@ struct StatusTransactionRow: View {
                 .foregroundStyle(isSent ? .orange : .green)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(isSent ? "Sent to \(otherUserId)" : "Received from \(otherUserId)")
+                Text(isSent ? "Sent to \(otherName)" : "Received from \(otherName)")
                     .font(.subheadline.weight(.medium))
                 Text(timeAgo(transaction.createdAt))
                     .font(.caption)

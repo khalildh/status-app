@@ -1,4 +1,5 @@
 import SwiftUI
+@preconcurrency import FirebaseFirestore
 
 struct ProfileView: View {
     @Environment(AuthService.self) private var auth
@@ -6,6 +7,7 @@ struct ProfileView: View {
     @Environment(LeaderboardService.self) private var leaderboardService
     @State private var showEditProfile = false
     @State private var showStore = false
+    @State private var userNames: [String: String] = [:]
 
     private var user: User? { auth.currentUser }
 
@@ -92,6 +94,7 @@ struct ProfileView: View {
         .task {
             if let user {
                 try? await statusEngine.refillIfNeeded(user: user)
+                await fetchUserNames()
             }
         }
     }
@@ -182,9 +185,9 @@ struct ProfileView: View {
                             .foregroundStyle(tx.fromUserId == user?.id ? .orange : .green)
 
                         if tx.fromUserId == user?.id {
-                            Text("Gave \(tx.amount) to \(tx.toUserId)")
+                            Text("Gave \(tx.amount) to \(userNames[tx.toUserId] ?? "someone")")
                         } else {
-                            Text("Received \(tx.amount) from \(tx.fromUserId)")
+                            Text("Received \(tx.amount) from \(userNames[tx.fromUserId] ?? "someone")")
                         }
 
                         Spacer()
@@ -196,6 +199,18 @@ struct ProfileView: View {
                     .font(.subheadline)
                     .padding(.horizontal)
                 }
+            }
+        }
+    }
+
+    private func fetchUserNames() async {
+        let db = Firestore.firestore()
+        let txns = statusEngine.transactions.filter { $0.fromUserId == user?.id || $0.toUserId == user?.id }
+        let ids = Set(txns.flatMap { [$0.fromUserId, $0.toUserId] }).subtracting([user?.id ?? ""])
+        for id in ids where userNames[id] == nil {
+            if let doc = try? await db.collection("users").document(id).getDocument(),
+               let u = try? doc.data(as: User.self) {
+                userNames[id] = u.displayName
             }
         }
     }
