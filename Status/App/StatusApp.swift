@@ -31,6 +31,7 @@ struct StatusApp: App {
     @State private var storageService = StorageService()
     @State private var storeService = StoreService()
     @State private var deepLinkHandler = DeepLinkHandler()
+    @State private var cryptoService = CryptoService()
     @State private var locationGate: LocationGate
 
     static let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
@@ -62,6 +63,7 @@ struct StatusApp: App {
                 .environment(storageService)
                 .environment(storeService)
                 .environment(deepLinkHandler)
+                .environment(cryptoService)
                 .environment(locationGate)
                 .onAppear {
                     if !Self.isUITesting {

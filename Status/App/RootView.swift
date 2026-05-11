@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AuthService.self) private var auth
     @Environment(NotificationService.self) private var notifications
+    @Environment(CryptoService.self) private var crypto
     @Environment(LocationGate.self) private var locationGate
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasGivenFirstStatus") private var hasGivenFirstStatus = false
@@ -24,6 +25,7 @@ struct RootView: View {
                         let _ = await notifications.requestPermission()
                         if let userId = auth.currentUser?.id {
                             await notifications.saveToken(userId: userId)
+                            try? await crypto.initialize(userId: userId)
                         }
                     }
             }

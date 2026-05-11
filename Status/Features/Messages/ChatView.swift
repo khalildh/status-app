@@ -5,10 +5,12 @@ struct ChatView: View {
     @Environment(MessageService.self) private var messageService
     @Environment(StatusEngine.self) private var statusEngine
     @Environment(BlockService.self) private var blockService
+    @Environment(CryptoService.self) private var crypto
     let conversation: Conversation
 
     @State private var newMessage = ""
     @State private var showBlockConfirmation = false
+    @State private var decryptedTexts: [String: String] = [:]
     @FocusState private var isFocused: Bool
 
     private var currentUserId: String { auth.currentUser?.id ?? "" }
@@ -28,9 +30,13 @@ struct ChatView: View {
                         ForEach(messages) { message in
                             MessageBubble(
                                 message: message,
+                                displayText: decryptedTexts[message.id] ?? message.text,
                                 isFromCurrentUser: message.senderId == currentUserId
                             )
                             .id(message.id)
+                            .task {
+                                await decryptIfNeeded(message)
+                            }
                         }
                     }
                     .padding()
@@ -119,11 +125,37 @@ struct ChatView: View {
         let text = newMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         newMessage = ""
+
+        // Encrypt before sending
+        var textToSend = text
+        if let encrypted = try? await crypto.encrypt(text, for: otherUserId) {
+            textToSend = encrypted.ciphertext
+        }
+
         try? await messageService.sendMessage(
             conversationId: conversation.id,
             senderId: currentUserId,
-            text: text
+            text: textToSend
         )
+
+        // Cache the decrypted version for immediate display
+        if let lastMsg = messages.last {
+            decryptedTexts[lastMsg.id] = text
+        }
+    }
+
+    private func decryptIfNeeded(_ message: Message) async {
+        guard decryptedTexts[message.id] == nil else { return }
+        let senderId = message.senderId == currentUserId ? otherUserId : message.senderId
+        if let decrypted = try? await crypto.decrypt(
+            EncryptedMessage(ciphertext: message.text, isEncrypted: true),
+            from: senderId
+        ) {
+            decryptedTexts[message.id] = decrypted
+        } else {
+            // Not encrypted or decryption failed — show as-is
+            decryptedTexts[message.id] = message.text
+        }
     }
 }
 
@@ -131,6 +163,7 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: Message
+    var displayText: String
     let isFromCurrentUser: Bool
 
     var body: some View {
@@ -138,7 +171,7 @@ struct MessageBubble: View {
             if isFromCurrentUser { Spacer(minLength: 60) }
 
             VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 2) {
-                Text(message.text)
+                Text(displayText)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(
