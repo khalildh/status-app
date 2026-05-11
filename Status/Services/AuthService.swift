@@ -22,6 +22,10 @@ final class AuthService {
             currentUser = .mock
             return
         }
+        if ProcessInfo.processInfo.arguments.contains("--uitesting") {
+            // UI test mode: no Firebase, no auth listener
+            return
+        }
         #endif
         listenForAuthChanges()
     }

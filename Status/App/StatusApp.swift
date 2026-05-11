@@ -7,8 +7,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // FirebaseApp.configure() is called in StatusApp.init() before this runs,
-        // but the delegate is needed for Messaging swizzling
         return true
     }
 
@@ -33,11 +31,26 @@ struct StatusApp: App {
     @State private var storageService = StorageService()
     @State private var storeService = StoreService()
     @State private var deepLinkHandler = DeepLinkHandler()
-    @State private var locationGate = LocationGate()
+    @State private var locationGate: LocationGate
+
+    static let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
 
     init() {
-        FirebaseApp.configure()
+        if Self.isUITesting {
+            // Skip Firebase for UI tests
+        } else {
+            FirebaseApp.configure()
+        }
         _authService = State(initialValue: AuthService())
+
+        if Self.isUITesting {
+            let gate = LocationGate()
+            gate.isInNYC = true
+            gate.isChecking = false
+            _locationGate = State(initialValue: gate)
+        } else {
+            _locationGate = State(initialValue: LocationGate())
+        }
     }
 
     var body: some Scene {
@@ -55,7 +68,9 @@ struct StatusApp: App {
                 .environment(deepLinkHandler)
                 .environment(locationGate)
                 .onAppear {
-                    notificationService.configure()
+                    if !Self.isUITesting {
+                        notificationService.configure()
+                    }
                 }
                 .onOpenURL { url in
                     deepLinkHandler.handle(url: url)

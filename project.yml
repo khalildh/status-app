@@ -61,6 +61,16 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
+  StatusUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - StatusUITests
+    dependencies:
+      - target: Status
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
 schemes:
   Status:
     build:
@@ -73,3 +83,4 @@ schemes:
       config: Debug
       targets:
         - StatusTests
+        - StatusUITests
