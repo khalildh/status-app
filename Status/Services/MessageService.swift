@@ -64,12 +64,13 @@ final class MessageService {
 
     // MARK: - Send Message
 
-    func sendMessage(conversationId: String, senderId: String, text: String) async throws {
+    func sendMessage(conversationId: String, senderId: String, text: String, ephemeralPublicKey: String? = nil) async throws {
         let message = Message(
             id: UUID().uuidString,
             conversationId: conversationId,
             senderId: senderId,
             text: text,
+            ephemeralPublicKey: ephemeralPublicKey,
             sentAt: .now
         )
 

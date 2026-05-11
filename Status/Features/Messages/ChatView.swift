@@ -126,16 +126,19 @@ struct ChatView: View {
         guard !text.isEmpty else { return }
         newMessage = ""
 
-        // Encrypt before sending
+        // Encrypt with ephemeral key for forward secrecy
         var textToSend = text
+        var ephemeralKey: String?
         if let encrypted = try? await crypto.encrypt(text, for: otherUserId) {
             textToSend = encrypted.ciphertext
+            ephemeralKey = encrypted.ephemeralPublicKey
         }
 
         try? await messageService.sendMessage(
             conversationId: conversation.id,
             senderId: currentUserId,
-            text: textToSend
+            text: textToSend,
+            ephemeralPublicKey: ephemeralKey
         )
 
         // Cache the decrypted version for immediate display
@@ -146,16 +149,24 @@ struct ChatView: View {
 
     private func decryptIfNeeded(_ message: Message) async {
         guard decryptedTexts[message.id] == nil else { return }
-        let senderId = message.senderId == currentUserId ? otherUserId : message.senderId
-        if let decrypted = try? await crypto.decrypt(
-            EncryptedMessage(ciphertext: message.text, isEncrypted: true),
-            from: senderId
-        ) {
-            decryptedTexts[message.id] = decrypted
-        } else {
-            // Not encrypted or decryption failed — show as-is
-            decryptedTexts[message.id] = message.text
+
+        if message.isEncrypted || message.ephemeralPublicKey != nil {
+            // Encrypted message — decrypt using ephemeral key
+            if let decrypted = try? await crypto.decrypt(
+                EncryptedMessage(
+                    ciphertext: message.text,
+                    ephemeralPublicKey: message.ephemeralPublicKey,
+                    isEncrypted: true
+                ),
+                from: message.senderId
+            ) {
+                decryptedTexts[message.id] = decrypted
+                return
+            }
         }
+
+        // Plain text or decryption failed — show as-is
+        decryptedTexts[message.id] = message.text
     }
 }
 
