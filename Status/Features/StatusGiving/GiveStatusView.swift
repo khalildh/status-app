@@ -104,6 +104,7 @@ struct GiveStatusView: View {
     private func send() {
         guard let user = auth.currentUser else { return }
         Task {
+            statusEngine.error = nil
             do {
                 try await statusEngine.giveStatus(from: user, to: recipientId, amount: amount)
             } catch {
@@ -113,7 +114,7 @@ struct GiveStatusView: View {
                 return
             }
 
-            // Check if giveStatus set an error (e.g. self-send, no balance)
+            // Check if giveStatus set a validation error (e.g. self-send, no balance)
             if statusEngine.error != nil { return }
 
             // Create a conversation so they appear in messages
