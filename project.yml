@@ -59,3 +59,15 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
+schemes:
+  Status:
+    build:
+      targets:
+        Status: all
+    run:
+      config: Debug
+      storeKitConfiguration: Status/StatusProducts.storekit
+    test:
+      config: Debug
+      targets:
+        - StatusTests
