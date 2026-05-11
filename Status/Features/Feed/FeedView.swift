@@ -37,8 +37,10 @@ struct FeedView: View {
                     .padding(.top, 40)
                 } else {
                     ForEach(broadcastService.feed) { broadcast in
-                        BroadcastCard(broadcast: broadcast, authorName: authorNames[broadcast.authorId] ?? broadcast.authorId)
-                            .padding(.horizontal)
+                        if let name = authorNames[broadcast.authorId] {
+                            BroadcastCard(broadcast: broadcast, authorName: name)
+                                .padding(.horizontal)
+                        }
                     }
                 }
             }

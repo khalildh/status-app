@@ -72,7 +72,7 @@ struct ChatView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .navigationTitle(otherUserName.isEmpty ? otherUserId : otherUserName)
+        .navigationTitle(otherUserName.isEmpty ? "" : otherUserName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

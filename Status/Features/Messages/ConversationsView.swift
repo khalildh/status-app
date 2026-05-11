@@ -17,12 +17,15 @@ struct ConversationsView: View {
                 )
             } else {
                 List(messageService.conversations) { conversation in
-                    NavigationLink(value: conversation) {
-                        ConversationRow(
-                            conversation: conversation,
-                            currentUserId: auth.currentUser?.id ?? "",
-                            otherUserName: otherUserName(for: conversation)
-                        )
+                    let name = otherUserName(for: conversation)
+                    if userNames[conversation.participantIds.first { $0 != auth.currentUser?.id } ?? ""] != nil {
+                        NavigationLink(value: conversation) {
+                            ConversationRow(
+                                conversation: conversation,
+                                currentUserId: auth.currentUser?.id ?? "",
+                                otherUserName: name
+                            )
+                        }
                     }
                 }
                 .listStyle(.plain)
