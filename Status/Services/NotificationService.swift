@@ -7,6 +7,7 @@ import FirebaseMessaging
 @Observable
 final class NotificationService: NSObject {
     var fcmToken: String?
+    private var currentUserId: String?
 
     @ObservationIgnored private var _db: Firestore?
     private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
@@ -32,7 +33,12 @@ final class NotificationService: NSObject {
     }
 
     func saveToken(userId: String) async {
-        guard let token = fcmToken else { return }
+        currentUserId = userId
+        guard let token = fcmToken else {
+            print("[Notifications] No FCM token yet, will save when received")
+            return
+        }
+        print("[Notifications] Saving FCM token for \(userId)")
         try? await db.collection("users").document(userId).updateData([
             "fcmToken": token
         ])
@@ -90,6 +96,14 @@ extension NotificationService: MessagingDelegate {
     nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         Task { @MainActor in
             self.fcmToken = fcmToken
+            print("[Notifications] FCM token received: \(fcmToken?.prefix(20) ?? "nil")...")
+            // Save immediately if we have a userId
+            if let userId = self.currentUserId, let token = fcmToken {
+                print("[Notifications] Auto-saving FCM token for \(userId)")
+                try? await self.db.collection("users").document(userId).updateData([
+                    "fcmToken": token
+                ])
+            }
         }
     }
 }
