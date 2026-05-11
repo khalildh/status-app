@@ -17,7 +17,7 @@ A status-based messaging app where social capital determines access. Currently g
 - **Auth** — email/password via Firebase Auth
 - **Status economy** — give, receive, weekly refill, paid top-ups, 90-day decay, transitive messaging
 - **Real-time messaging** — Firestore listeners, conversation management
-- **E2E encryption** — P256 ephemeral keys per message with forward secrecy, double encryption (sender + recipient copies), AES-GCM
+- **E2E encryption** — ECIES-like scheme with P256 ephemeral keys, double encryption (sender + recipient copies), AES-GCM. No forward secrecy yet ([Issue #1](https://github.com/khalildh/status-app/issues/1))
 - **Ephemeral broadcasts** — 1/day, 24h expiry, audience based on status graph
 - **Leaderboard** — weighted scoring, podium for top 3, scope picker (weekly/monthly/all time)
 - **Discovery** — user search (Firestore prefix matching), suggested users
@@ -73,9 +73,9 @@ functions/          — Cloud Functions (onNewMessage, onNewBroadcast, onStatusG
 
 - **Firestore rules** — users own their documents, participants-only conversations, sender-only transactions
 - **Storage rules** — owner-only avatar uploads, 5MB limit, image-only
-- **E2E encryption** — messages encrypted client-side with ephemeral keys, plaintext never stored server-side
-- **Forward secrecy** — fresh P256 key pair per message, ephemeral private key discarded after encryption
-- **Double encryption** — each message encrypted for both recipient and sender (standard Signal/iMessage approach)
+- **E2E encryption** — messages encrypted client-side (ECIES-like), plaintext never stored server-side
+- **Double encryption** — each message encrypted for both recipient and sender
+- **No forward secrecy yet** — current scheme is vulnerable to retrospective decryption if identity key is compromised. Signal Protocol integration planned ([Issue #1](https://github.com/khalildh/status-app/issues/1))
 - **Keychain** — identity private keys stored in iOS Keychain, never leave the device
 
 ## Testing
@@ -136,14 +136,20 @@ xcodebuild -project Status.xcodeproj -scheme Status \
 
 ## Encryption
 
-Messages use E2E encryption with forward secrecy:
+Messages are end-to-end encrypted using an ECIES-like scheme:
 
-1. **Signup** — P256 identity key pair generated, public key published to Firestore, private key stored in Keychain
-2. **Send** — fresh ephemeral P256 key pair → ECDH with recipient's public key → HKDF → AES-GCM encrypt. Ephemeral private key discarded. Message encrypted separately for both recipient and sender
+1. **Signup** — P256 identity key pair generated, public key published to Firestore, private key stored in iOS Keychain
+2. **Send** — fresh ephemeral P256 key pair → ECDH with recipient's public key → HKDF → AES-GCM encrypt. Message encrypted separately for both recipient and sender (for sent-message visibility)
 3. **Receive** — recipient's identity private key + sender's ephemeral public key → same ECDH shared secret → AES-GCM decrypt
-4. **Forward secrecy** — each message uses a unique ephemeral key. Compromising the identity key cannot decrypt past messages
 
-Future: full Signal Protocol via [libsignal](https://github.com/signalapp/libsignal) ([Issue #1](https://github.com/khalildh/status-app/issues/1))
+**What this protects against:** passive eavesdroppers, server-side data breaches, Firestore admin access — messages are ciphertext at rest and in transit.
+
+**Known limitations:**
+- **No forward secrecy** — if a recipient's identity key is later compromised, an attacker with recorded ciphertexts + ephemeral public keys can derive the same shared secrets and decrypt past messages. True FS requires both sides to contribute ephemeral keys (DHE) or a ratcheting scheme
+- **TOFU key trust** — public keys are fetched from Firestore without out-of-band verification. No safety numbers or key fingerprints yet
+- **No replay/ordering protection** — AES-GCM provides per-message integrity but nothing prevents server-side reordering or replay
+
+**Future:** full Signal Protocol (X3DH + Double Ratchet) via [libsignal](https://github.com/signalapp/libsignal) would address all of the above ([Issue #1](https://github.com/khalildh/status-app/issues/1))
 
 ## Status Economy
 
