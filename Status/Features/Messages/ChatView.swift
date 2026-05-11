@@ -28,9 +28,11 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(messages) { message in
+                            let displayText = decryptedTexts[message.id]
+                                ?? (message.isEncrypted ? "..." : message.text)
                             MessageBubble(
                                 message: message,
-                                displayText: decryptedTexts[message.id] ?? message.text,
+                                displayText: displayText,
                                 isFromCurrentUser: message.senderId == currentUserId
                             )
                             .id(message.id)
