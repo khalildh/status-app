@@ -3,11 +3,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users: anyone can read, only owner can write
+    // Users: anyone can read, owner can write, others can update status fields
     match /users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (
+        // Owner can update anything
+        request.auth.uid == userId ||
+        // Others can only update status-related fields (from giving status)
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['totalStatusReceived', 'statusBalance']))
+      );
       allow delete: if false;
     }
 
