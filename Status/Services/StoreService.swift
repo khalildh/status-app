@@ -15,15 +15,15 @@ final class StoreService {
     @ObservationIgnored private var updateTask: Task<Void, Never>?
 
     static let productIds: [String] = [
-        "com.status.points.5",
-        "com.status.points.15",
-        "com.status.points.50",
+        "com.statusapp.points.5",
+        "com.statusapp.points.15",
+        "com.statusapp.points.50",
     ]
 
     static let pointsByProductId: [String: Int] = [
-        "com.status.points.5": 5,
-        "com.status.points.15": 15,
-        "com.status.points.50": 50,
+        "com.statusapp.points.5": 5,
+        "com.statusapp.points.15": 15,
+        "com.statusapp.points.50": 50,
     ]
 
     init() {

@@ -1,6 +1,6 @@
 name: Status
 options:
-  bundleIdPrefix: com.status
+  bundleIdPrefix: com.statusapp
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16.0"
@@ -43,6 +43,11 @@ targets:
         DEVELOPMENT_TEAM: TVAG3T3Y65
     info:
       path: Status/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - status
+            CFBundleURLName: com.statusapp.Status
   StatusTests:
     type: bundle.unit-test
     platform: iOS

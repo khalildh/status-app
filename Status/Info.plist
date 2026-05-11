@@ -16,18 +16,18 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.statusapp.Status</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>status</string>
 			</array>
-			<key>CFBundleURLName</key>
-			<string>com.status.Status</string>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
 </dict>
 </plist>
