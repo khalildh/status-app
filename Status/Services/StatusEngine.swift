@@ -80,6 +80,10 @@ final class StatusEngine {
     // MARK: - Giving Status
 
     func giveStatus(from fromUser: User, to toUserId: String, amount: Int) async throws {
+        guard fromUser.id != toUserId else {
+            error = "You can't give status to yourself."
+            return
+        }
         guard amount > 0, fromUser.statusBalance >= amount else {
             error = fromUser.statusBalance == 0
                 ? "No status points left. Refills weekly or buy more."

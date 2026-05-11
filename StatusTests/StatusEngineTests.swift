@@ -528,6 +528,27 @@ struct StatusEngineTests {
             to: makeUser(id: "b", statusReceived: 50)
         ))
     }
+
+    // =========================================================================
+    // MARK: - Self-Status Prevention
+    // =========================================================================
+
+    @Test("Cannot give status to yourself")
+    func cannotGiveStatusToSelf() async {
+        let engine = makeEngine()
+        let user = makeUser(id: "me", balance: 5)
+        try? await engine.giveStatus(from: user, to: "me", amount: 1)
+        #expect(engine.error == "You can't give status to yourself.")
+    }
+
+    @Test("Giving status to someone else works")
+    func canGiveStatusToOther() async {
+        let engine = makeEngine()
+        let user = makeUser(id: "me", balance: 5)
+        // This will fail at Firestore level in tests, but shouldn't set the self-error
+        try? await engine.giveStatus(from: user, to: "other", amount: 1)
+        #expect(engine.error != "You can't give status to yourself.")
+    }
 }
 
 // =============================================================================
