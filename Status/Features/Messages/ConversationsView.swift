@@ -1,9 +1,11 @@
 import SwiftUI
+@preconcurrency import FirebaseFirestore
 
 struct ConversationsView: View {
     @Environment(AuthService.self) private var auth
     @Environment(MessageService.self) private var messageService
     @Environment(StatusEngine.self) private var statusEngine
+    @State private var userNames: [String: String] = [:]
 
     var body: some View {
         Group {
@@ -18,7 +20,8 @@ struct ConversationsView: View {
                     NavigationLink(value: conversation) {
                         ConversationRow(
                             conversation: conversation,
-                            currentUserId: auth.currentUser?.id ?? ""
+                            currentUserId: auth.currentUser?.id ?? "",
+                            otherUserName: otherUserName(for: conversation)
                         )
                     }
                 }
@@ -34,6 +37,29 @@ struct ConversationsView: View {
                 messageService.startListeningToConversations(for: user.id)
             }
         }
+        .onChange(of: messageService.conversations) {
+            Task { await fetchUserNames() }
+        }
+    }
+
+    private func otherUserName(for conversation: Conversation) -> String {
+        let otherId = conversation.participantIds.first { $0 != auth.currentUser?.id } ?? ""
+        return userNames[otherId] ?? otherId
+    }
+
+    private func fetchUserNames() async {
+        let currentId = auth.currentUser?.id ?? ""
+        let db = Firestore.firestore()
+        for conversation in messageService.conversations {
+            for participantId in conversation.participantIds where participantId != currentId {
+                if userNames[participantId] == nil {
+                    if let doc = try? await db.collection("users").document(participantId).getDocument(),
+                       let user = try? doc.data(as: User.self) {
+                        userNames[participantId] = user.displayName
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -42,26 +68,31 @@ struct ConversationsView: View {
 struct ConversationRow: View {
     let conversation: Conversation
     let currentUserId: String
+    let otherUserName: String
 
     private var otherUserId: String {
         conversation.participantIds.first { $0 != currentUserId } ?? ""
     }
 
+    // Encrypted messages have base64 ciphertext — detect and hide
+    private var lastMessagePreview: String {
+        guard let msg = conversation.lastMessage, !msg.isEmpty else {
+            return ""
+        }
+        // If it looks like base64 ciphertext (no spaces, long), show placeholder
+        if msg.count > 30 && !msg.contains(" ") {
+            return "Encrypted message"
+        }
+        return msg
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(.quaternary)
-                .frame(width: 48, height: 48)
-                .overlay {
-                    Text(otherUserId.prefix(1).uppercased())
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                }
+            AvatarPlaceholder(name: otherUserName, size: 48)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(otherUserId)
+                    Text(otherUserName)
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                     if let date = conversation.lastMessageAt {
@@ -72,7 +103,7 @@ struct ConversationRow: View {
                 }
 
                 HStack {
-                    Text(conversation.lastMessage ?? "")
+                    Text(lastMessagePreview)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

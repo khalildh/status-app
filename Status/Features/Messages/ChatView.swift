@@ -1,4 +1,5 @@
 import SwiftUI
+@preconcurrency import FirebaseFirestore
 
 struct ChatView: View {
     @Environment(AuthService.self) private var auth
@@ -11,6 +12,7 @@ struct ChatView: View {
     @State private var newMessage = ""
     @State private var showBlockConfirmation = false
     @State private var decryptedTexts: [String: String] = [:]
+    @State private var otherUserName: String = ""
     @FocusState private var isFocused: Bool
 
     private var currentUserId: String { auth.currentUser?.id ?? "" }
@@ -70,7 +72,7 @@ struct ChatView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .navigationTitle(otherUserId)
+        .navigationTitle(otherUserName.isEmpty ? otherUserId : otherUserName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -115,6 +117,12 @@ struct ChatView: View {
         }
         .task {
             messageService.startListeningToMessages(for: conversation.id)
+            // Fetch other user's display name
+            let db = FirebaseFirestore.Firestore.firestore()
+            if let doc = try? await db.collection("users").document(otherUserId).getDocument(),
+               let user = try? doc.data(as: User.self) {
+                otherUserName = user.displayName
+            }
         }
         .onDisappear {
             messageService.stopListeningToMessages(for: conversation.id)
