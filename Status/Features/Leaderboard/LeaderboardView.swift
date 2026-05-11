@@ -26,7 +26,7 @@ struct LeaderboardView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        // Top 3 podium
+                        // Top 3 podium (only when we have 3+)
                         if leaderboardService.entries.count >= 3 {
                             PodiumView(
                                 entries: Array(leaderboardService.entries.prefix(3)),
@@ -35,8 +35,8 @@ struct LeaderboardView: View {
                             .padding(.bottom, 16)
                         }
 
-                        // Rest of the list
-                        let startIndex = min(3, leaderboardService.entries.count)
+                        // List: show all entries when < 3, otherwise show after podium
+                        let startIndex = leaderboardService.entries.count >= 3 ? 3 : 0
                         ForEach(leaderboardService.entries.dropFirst(startIndex)) { entry in
                             NavigationLink {
                                 GiveStatusView(recipientId: entry.userId)
