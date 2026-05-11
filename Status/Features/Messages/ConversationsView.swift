@@ -79,9 +79,9 @@ struct ConversationRow: View {
         guard let msg = conversation.lastMessage, !msg.isEmpty else {
             return ""
         }
-        // If it looks like base64 ciphertext (no spaces, long), show placeholder
+        // If it looks like base64 ciphertext (no spaces, long), hide it
         if msg.count > 30 && !msg.contains(" ") {
-            return "Encrypted message"
+            return ""
         }
         return msg
     }
