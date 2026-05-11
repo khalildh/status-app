@@ -1,6 +1,7 @@
 import Foundation
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
+@MainActor
 @Observable
 final class MessageService {
     var conversations: [Conversation] = []
@@ -9,10 +10,10 @@ final class MessageService {
 
     @ObservationIgnored private var _db: Firestore? = nil
     private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
-    private var conversationsListener: ListenerRegistration?
-    private var messageListeners: [String: ListenerRegistration] = [:]
+    nonisolated(unsafe) private var conversationsListener: ListenerRegistration?
+    nonisolated(unsafe) private var messageListeners: [String: ListenerRegistration] = [:]
 
-    deinit {
+    nonisolated deinit {
         conversationsListener?.remove()
         messageListeners.values.forEach { $0.remove() }
     }

@@ -2,6 +2,7 @@ import Foundation
 import FirebaseStorage
 import UIKit
 
+@MainActor
 @Observable
 final class StorageService {
     var isUploading = false

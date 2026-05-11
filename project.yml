@@ -38,6 +38,7 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIRequiresFullScreen: true
         CODE_SIGN_IDENTITY: "Apple Development"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: TVAG3T3Y65
@@ -49,6 +50,7 @@ targets:
               - status
             CFBundleURLName: com.statusapp.Status
         NSLocationWhenInUseUsageDescription: Status uses your location to verify you're in New York City, where the app is currently available.
+        UIRequiresFullScreen: true
   StatusTests:
     type: bundle.unit-test
     platform: iOS
@@ -66,7 +68,7 @@ schemes:
         Status: all
     run:
       config: Debug
-      storeKitConfiguration: Status/StatusProducts.storekit
+      storeKitConfiguration: Status/Status.storekit
     test:
       config: Debug
       targets:

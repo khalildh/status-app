@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 import FirebaseMessaging
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
 @Observable
 final class NotificationService: NSObject {

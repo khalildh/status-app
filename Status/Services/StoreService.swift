@@ -1,7 +1,8 @@
 import Foundation
 import StoreKit
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
+@MainActor
 @Observable
 final class StoreService {
     var products: [Product] = []
@@ -27,7 +28,9 @@ final class StoreService {
     ]
 
     init() {
-        updateTask = Task { await listenForTransactions() }
+        updateTask = Task { @MainActor in
+            await listenForTransactions()
+        }
     }
 
     deinit {

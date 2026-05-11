@@ -3,6 +3,7 @@ import Testing
 @testable import Status
 
 @Suite("StatusEngine")
+@MainActor
 struct StatusEngineTests {
 
     // MARK: - Helpers

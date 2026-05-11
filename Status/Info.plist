@@ -31,5 +31,7 @@
 	<string>1</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Status uses your location to verify you're in New York City, where the app is currently available.</string>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 </dict>
 </plist>

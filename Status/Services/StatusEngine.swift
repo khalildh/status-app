@@ -1,6 +1,7 @@
 import Foundation
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
+@MainActor
 @Observable
 final class StatusEngine {
     var transactions: [StatusTransaction] = []
@@ -9,9 +10,9 @@ final class StatusEngine {
 
     @ObservationIgnored private var _db: Firestore? = nil
     private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
-    private var listener: ListenerRegistration?
+    nonisolated(unsafe) private var listener: ListenerRegistration?
 
-    deinit {
+    nonisolated deinit {
         listener?.remove()
     }
 

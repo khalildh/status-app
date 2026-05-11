@@ -1,7 +1,8 @@
 import Foundation
-import FirebaseAuth
-import FirebaseFirestore
+@preconcurrency import FirebaseAuth
+@preconcurrency import FirebaseFirestore
 
+@MainActor
 @Observable
 final class AuthService {
     var currentUser: User?

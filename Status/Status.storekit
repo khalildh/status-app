@@ -1,0 +1,84 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "8BB668F2",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "points_5",
+      "localizations" : [
+        {
+          "description" : "Get 5 status points",
+          "displayName" : "5 Points",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.statusapp.points.5",
+      "referenceName" : "5 Points",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "points_15",
+      "localizations" : [
+        {
+          "description" : "Get 15 status points",
+          "displayName" : "15 Points",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.statusapp.points.15",
+      "referenceName" : "15 Points",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "7.99",
+      "familyShareable" : false,
+      "internalID" : "points_50",
+      "localizations" : [
+        {
+          "description" : "Get 50 status points",
+          "displayName" : "50 Points",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.statusapp.points.50",
+      "referenceName" : "50 Points",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

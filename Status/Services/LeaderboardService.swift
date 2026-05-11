@@ -1,6 +1,7 @@
 import Foundation
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
+@MainActor
 @Observable
 final class LeaderboardService {
     var entries: [LeaderboardEntry] = []

@@ -1,5 +1,5 @@
 import Foundation
-import FirebaseFirestore
+@preconcurrency import FirebaseFirestore
 
 /// Centralized Firestore access. All collection references and generic helpers live here.
 /// Individual feature services call into this for reads/writes.
