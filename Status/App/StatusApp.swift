@@ -1,8 +1,28 @@
 import SwiftUI
 import FirebaseCore
+import FirebaseMessaging
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // FirebaseApp.configure() is called in StatusApp.init() before this runs,
+        // but the delegate is needed for Messaging swizzling
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+}
 
 @main
 struct StatusApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @State private var authService: AuthService
     @State private var statusEngine = StatusEngine()
     @State private var messageService = MessageService()

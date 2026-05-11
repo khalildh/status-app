@@ -37,9 +37,19 @@ final class StoreService {
     func loadProducts() async {
         isLoading = true
         do {
-            products = try await Product.products(for: Self.productIds)
+            let ids = Self.productIds
+            print("[StoreService] Requesting products: \(ids)")
+            products = try await Product.products(for: ids)
                 .sorted { $0.price < $1.price }
+            print("[StoreService] Loaded \(products.count) products")
+            for p in products {
+                print("[StoreService]   \(p.id) - \(p.displayName) - \(p.displayPrice)")
+            }
+            if products.isEmpty {
+                error = "No products available. Check StoreKit configuration."
+            }
         } catch {
+            print("[StoreService] Error: \(error)")
             self.error = error.localizedDescription
         }
         isLoading = false
