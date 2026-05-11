@@ -17,6 +17,8 @@ struct GiveStatusView: View {
         auth.currentUser?.statusBalance ?? 0
     }
 
+    private var isSelf: Bool { recipientId == auth.currentUser?.id }
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
@@ -28,66 +30,72 @@ struct GiveStatusView: View {
                     .font(.headline)
             }
 
-            // Amount selector
-            VStack(spacing: 16) {
-                Text("Give Status")
-                    .font(.title2.weight(.bold))
-
-                HStack(spacing: 24) {
-                    Button {
-                        if amount > 1 {
-                            amount -= 1
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title)
-                    }
-                    .disabled(amount <= 1)
-
-                    Text("\(amount)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .frame(minWidth: 80)
-                        .contentTransition(.numericText())
-                        .animation(.snappy, value: amount)
-
-                    Button {
-                        if amount < maxAmount {
-                            amount += 1
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title)
-                    }
-                    .disabled(amount >= maxAmount)
-                }
-
-                Text("\(maxAmount) points available")
-                    .font(.caption)
+            if isSelf {
+                Text("This is you!")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Send button
-            if didSend {
-                Label("Status sent!", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                    .foregroundStyle(.green)
-                    .transition(.scale.combined(with: .opacity))
             } else {
-                Button {
-                    send()
-                } label: {
-                    Text("Send \(amount) Status")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                // Amount selector
+                VStack(spacing: 16) {
+                    Text("Give Status")
+                        .font(.title2.weight(.bold))
+
+                    HStack(spacing: 24) {
+                        Button {
+                            if amount > 1 {
+                                amount -= 1
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.title)
+                        }
+                        .disabled(amount <= 1)
+
+                        Text("\(amount)")
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .frame(minWidth: 80)
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: amount)
+
+                        Button {
+                            if amount < maxAmount {
+                                amount += 1
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title)
+                        }
+                        .disabled(amount >= maxAmount)
+                    }
+
+                    Text("\(maxAmount) points available")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.primary)
-                .disabled(maxAmount == 0)
-                .padding(.horizontal, 32)
+
+                Spacer()
+
+                // Send button
+                if didSend {
+                    Label("Status sent!", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(.green)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Button {
+                        send()
+                    } label: {
+                        Text("Send \(amount) Status")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.primary)
+                    .disabled(maxAmount == 0)
+                    .padding(.horizontal, 32)
+                }
             }
 
             Spacer()
