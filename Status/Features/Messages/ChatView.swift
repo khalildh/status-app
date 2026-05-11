@@ -28,19 +28,15 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(messages) { message in
-                            let displayText = decryptedTexts[message.id]
-                                ?? (message.isEncrypted ? nil : message.text)
-                            if let displayText {
-                                MessageBubble(
-                                    message: message,
-                                    displayText: displayText,
-                                    isFromCurrentUser: message.senderId == currentUserId
-                                )
-                                .id(message.id)
+                            MessageBubble(
+                                message: message,
+                                displayText: decryptedTexts[message.id] ?? (message.isEncrypted ? "..." : message.text),
+                                isFromCurrentUser: message.senderId == currentUserId
+                            )
+                            .id(message.id)
+                            .task {
+                                await decryptIfNeeded(message)
                             }
-                            Color.clear
-                                .frame(height: 0)
-                                .task { await decryptIfNeeded(message) }
                         }
                     }
                     .padding()
@@ -155,18 +151,20 @@ struct ChatView: View {
     private func decryptIfNeeded(_ message: Message) async {
         guard decryptedTexts[message.id] == nil else { return }
 
-        if message.isEncrypted || message.ephemeralPublicKey != nil {
-            // Encrypted message — decrypt using ephemeral key
-            if let decrypted = try? await crypto.decrypt(
-                EncryptedMessage(
-                    ciphertext: message.text,
-                    ephemeralPublicKey: message.ephemeralPublicKey,
-                    isEncrypted: true
-                ),
-                from: message.senderId
-            ) {
+        if message.isEncrypted {
+            do {
+                let decrypted = try await crypto.decrypt(
+                    EncryptedMessage(
+                        ciphertext: message.text,
+                        ephemeralPublicKey: message.ephemeralPublicKey,
+                        isEncrypted: true
+                    ),
+                    from: message.senderId
+                )
                 decryptedTexts[message.id] = decrypted
                 return
+            } catch {
+                print("[ChatView] Decryption failed for \(message.id): \(error)")
             }
         }
 
