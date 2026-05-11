@@ -48,6 +48,7 @@ targets:
           - CFBundleURLSchemes:
               - status
             CFBundleURLName: com.statusapp.Status
+        NSLocationWhenInUseUsageDescription: Status uses your location to verify you're in New York City, where the app is currently available.
   StatusTests:
     type: bundle.unit-test
     platform: iOS

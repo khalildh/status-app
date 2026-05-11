@@ -13,6 +13,7 @@ struct StatusApp: App {
     @State private var storageService = StorageService()
     @State private var storeService = StoreService()
     @State private var deepLinkHandler = DeepLinkHandler()
+    @State private var locationGate = LocationGate()
 
     init() {
         FirebaseApp.configure()
@@ -32,6 +33,7 @@ struct StatusApp: App {
                 .environment(storageService)
                 .environment(storeService)
                 .environment(deepLinkHandler)
+                .environment(locationGate)
                 .onAppear {
                     notificationService.configure()
                 }
