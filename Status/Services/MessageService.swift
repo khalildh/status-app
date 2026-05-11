@@ -106,6 +106,9 @@ final class MessageService {
         let conversation = Conversation(
             id: UUID().uuidString,
             participantIds: [userA, userB],
+            lastMessage: "Status sent!",
+            lastMessageAt: .now,
+            lastSenderId: userA,
             unreadCount: 0,
             createdAt: .now
         )

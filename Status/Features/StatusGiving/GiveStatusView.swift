@@ -106,20 +106,30 @@ struct GiveStatusView: View {
         Task {
             do {
                 try await statusEngine.giveStatus(from: user, to: recipientId, amount: amount)
-                // Create a conversation so they appear in messages
-                let _ = try? await messageService.startConversation(between: user.id, and: recipientId)
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-                withAnimation(.spring(duration: 0.4)) {
-                    didSend = true
-                }
-                try? await Task.sleep(for: .seconds(1.5))
-                dismiss()
             } catch {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.error)
                 statusEngine.error = error.localizedDescription
+                return
             }
+
+            // Check if giveStatus set an error (e.g. self-send, no balance)
+            if statusEngine.error != nil { return }
+
+            // Create a conversation so they appear in messages
+            do {
+                let _ = try await messageService.startConversation(between: user.id, and: recipientId)
+            } catch {
+                print("[GiveStatus] Failed to create conversation: \(error)")
+            }
+
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+            withAnimation(.spring(duration: 0.4)) {
+                didSend = true
+            }
+            try? await Task.sleep(for: .seconds(1.5))
+            dismiss()
         }
     }
 }
