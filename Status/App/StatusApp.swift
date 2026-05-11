@@ -36,11 +36,7 @@ struct StatusApp: App {
     static let isUITesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
 
     init() {
-        if Self.isUITesting {
-            // Skip Firebase for UI tests
-        } else {
-            FirebaseApp.configure()
-        }
+        FirebaseApp.configure()
         _authService = State(initialValue: AuthService())
 
         if Self.isUITesting {

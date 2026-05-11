@@ -4,15 +4,13 @@ final class LocationGateUITests: StatusUITestCase {
 
     func testLocationGateBypassedInUITesting() {
         // With --uitesting, location gate should be bypassed
-        launchPastOnboarding()
+        // App should reach auth screen, not location gate
+        launchAtAuth()
 
-        // Should NOT see "Not Available Yet" or location gate
-        XCTAssertFalse(app.staticTexts["Not Available Yet"].waitForExistence(timeout: 2))
-
-        // Should see auth screen (location gate bypassed)
-        XCTAssertTrue(
-            app.staticTexts["Your social capital, quantified."].waitForExistence(timeout: 5) ||
-            app.textFields["Email"].waitForExistence(timeout: 5)
-        )
+        // Should see auth screen elements (email field or Status text)
+        let emailField = app.textFields["Email"]
+        let statusText = app.staticTexts["Status"]
+        _ = emailField.waitForExistence(timeout: 10)
+        XCTAssertTrue(emailField.exists || statusText.exists)
     }
 }

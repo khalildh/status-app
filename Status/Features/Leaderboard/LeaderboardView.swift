@@ -38,10 +38,15 @@ struct LeaderboardView: View {
                         // Rest of the list
                         let startIndex = min(3, leaderboardService.entries.count)
                         ForEach(leaderboardService.entries.dropFirst(startIndex)) { entry in
-                            LeaderboardRow(
-                                entry: entry,
-                                isCurrentUser: entry.userId == auth.currentUser?.id
-                            )
+                            NavigationLink {
+                                GiveStatusView(recipientId: entry.userId)
+                            } label: {
+                                LeaderboardRow(
+                                    entry: entry,
+                                    isCurrentUser: entry.userId == auth.currentUser?.id
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
 
                         // Current user's position if not in visible list
@@ -75,13 +80,28 @@ struct PodiumView: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if entries.count >= 2 {
-                podiumItem(entries[1], height: 80)
+                NavigationLink {
+                    GiveStatusView(recipientId: entries[1].userId)
+                } label: {
+                    podiumItem(entries[1], height: 80)
+                }
+                .buttonStyle(.plain)
             }
             if entries.count >= 1 {
-                podiumItem(entries[0], height: 110)
+                NavigationLink {
+                    GiveStatusView(recipientId: entries[0].userId)
+                } label: {
+                    podiumItem(entries[0], height: 110)
+                }
+                .buttonStyle(.plain)
             }
             if entries.count >= 3 {
-                podiumItem(entries[2], height: 60)
+                NavigationLink {
+                    GiveStatusView(recipientId: entries[2].userId)
+                } label: {
+                    podiumItem(entries[2], height: 60)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.top, 16)
