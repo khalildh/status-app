@@ -10,10 +10,10 @@ final class MessageService {
 
     @ObservationIgnored private var _db: Firestore? = nil
     private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
-    nonisolated(unsafe) private var conversationsListener: ListenerRegistration?
-    nonisolated(unsafe) private var messageListeners: [String: ListenerRegistration] = [:]
+    @ObservationIgnored private var conversationsListener: ListenerRegistration?
+    @ObservationIgnored private var messageListeners: [String: ListenerRegistration] = [:]
 
-    nonisolated deinit {
+    deinit {
         conversationsListener?.remove()
         messageListeners.values.forEach { $0.remove() }
     }

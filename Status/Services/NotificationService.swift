@@ -3,6 +3,7 @@ import UIKit
 import FirebaseMessaging
 @preconcurrency import FirebaseFirestore
 
+@MainActor
 @Observable
 final class NotificationService: NSObject {
     var fcmToken: String?
@@ -40,7 +41,7 @@ final class NotificationService: NSObject {
     // MARK: - Send notifications (called from services after writes)
 
     func notifyStatusReceived(recipientId: String, senderName: String, amount: Int) async {
-        try? await db.collection("notifications").addDocument(data: [
+        _ = try? await db.collection("notifications").addDocument(data: [
             "recipientId": recipientId,
             "type": "status_received",
             "title": "Status Received",
@@ -51,7 +52,7 @@ final class NotificationService: NSObject {
     }
 
     func notifyNewMessage(recipientId: String, senderName: String) async {
-        try? await db.collection("notifications").addDocument(data: [
+        _ = try? await db.collection("notifications").addDocument(data: [
             "recipientId": recipientId,
             "type": "new_message",
             "title": "New Message",
@@ -86,22 +87,24 @@ final class NotificationService: NSObject {
 // MARK: - MessagingDelegate
 
 extension NotificationService: MessagingDelegate {
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        self.fcmToken = fcmToken
+    nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        Task { @MainActor in
+            self.fcmToken = fcmToken
+        }
     }
 }
 
 // MARK: - UNUserNotificationCenterDelegate
 
 extension NotificationService: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .badge, .sound]
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {

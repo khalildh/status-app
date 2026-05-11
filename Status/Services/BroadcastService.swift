@@ -10,9 +10,9 @@ final class BroadcastService {
 
     @ObservationIgnored private var _db: Firestore? = nil
     private var db: Firestore { if _db == nil { _db = Firestore.firestore() }; return _db! }
-    nonisolated(unsafe) private var listener: ListenerRegistration?
+    @ObservationIgnored private var listener: ListenerRegistration?
 
-    nonisolated deinit {
+    deinit {
         listener?.remove()
     }
 

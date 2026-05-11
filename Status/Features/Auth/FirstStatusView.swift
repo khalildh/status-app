@@ -107,7 +107,7 @@ struct FirstStatusView: View {
     private func give(to user: User) async {
         guard let currentUser = auth.currentUser else { return }
         try? await statusEngine.giveStatus(from: currentUser, to: user.id, amount: 1)
-        withAnimation {
+        _ = withAnimation {
             givenTo.insert(user.id)
         }
     }

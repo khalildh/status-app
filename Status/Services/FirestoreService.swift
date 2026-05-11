@@ -22,7 +22,7 @@ final class FirestoreService {
     // MARK: - Generic Helpers
 
     /// Listen to a query as an AsyncThrowingStream of decoded documents.
-    func listen<T: Decodable>(
+    func listen<T: Decodable & Sendable>(
         to query: Query,
         as type: T.Type
     ) -> AsyncThrowingStream<[T], Error> {
@@ -43,14 +43,14 @@ final class FirestoreService {
                     continuation.finish(throwing: error)
                 }
             }
-            continuation.onTermination = { _ in
+            continuation.onTermination = { @Sendable _ in
                 listener.remove()
             }
         }
     }
 
     /// Listen to a single document.
-    func listenToDocument<T: Decodable>(
+    func listenToDocument<T: Decodable & Sendable>(
         _ ref: DocumentReference,
         as type: T.Type
     ) -> AsyncThrowingStream<T?, Error> {
@@ -71,7 +71,7 @@ final class FirestoreService {
                     continuation.finish(throwing: error)
                 }
             }
-            continuation.onTermination = { _ in
+            continuation.onTermination = { @Sendable _ in
                 listener.remove()
             }
         }
