@@ -129,9 +129,12 @@ struct ChatView: View {
         // Encrypt with ephemeral key for forward secrecy
         var textToSend = text
         var ephemeralKey: String?
-        if let encrypted = try? await crypto.encrypt(text, for: otherUserId) {
+        do {
+            let encrypted = try await crypto.encrypt(text, for: otherUserId)
             textToSend = encrypted.ciphertext
             ephemeralKey = encrypted.ephemeralPublicKey
+        } catch {
+            print("[ChatView] Encryption failed, sending plaintext: \(error)")
         }
 
         try? await messageService.sendMessage(
